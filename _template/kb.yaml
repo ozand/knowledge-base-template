@@ -1,0 +1,28 @@
+# kb.yaml — Knowledge Base manifest
+# Used by bootstrap.sh to configure local installation.
+
+name: my-kb
+description: "My knowledge base"
+
+# Local installation path
+local_path: ~/.kb/my-kb
+
+# Pi agent skills path (registered in ~/.pi/agent/settings.json if Pi is installed)
+pi_skills_path: ~/.kb/my-kb/skills
+
+# Git remote (optional — for sync with a mono-repo)
+# remote: https://github.com/<user>/knowledge-bases.git
+# kb_subdir: my-kb
+
+# Scripts installed to ~/.local/bin/ by bootstrap.sh
+scripts:
+  - src: scripts/generate-viz.sh
+    dst: kb-generate-viz
+  - src: scripts/kb-sync.sh
+    dst: kb-sync
+
+# Bootstrap hooks (run after standard install steps)
+hooks:
+  post_install:
+    - "echo '✓ KB installed'"
+    - "echo '  Run: kb-generate-viz <kb-path>  to build viz.html'"

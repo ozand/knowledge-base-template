@@ -1,0 +1,25 @@
+version: 1
+updated: YYYY-MM-DD
+count: 0
+
+categories:
+  - shell
+  - git
+  - vcs-hosting
+  - environment
+  - tooling
+  - build
+  - runtime
+  - agent-orchestration
+
+lessons: []
+# Add entries here after creating lesson files in lessons/
+# Example:
+#   - id: KB-0001
+#     title: "..."
+#     file: lessons/KB-0001-slug.md
+#     category: runtime
+#     severity: medium
+#     tags: [tool, keyword]
+#     error_signatures:
+#       - "error string"

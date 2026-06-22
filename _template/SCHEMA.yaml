@@ -1,0 +1,145 @@
+# =============================================================================
+# SCHEMA.yaml — Pi Knowledge Base lesson format specification
+#
+# Format: Markdown file with YAML frontmatter (OKF-style)
+# File extension: .md
+# Location: lessons/KB-XXXX-<slug>.md
+# =============================================================================
+
+version: 2
+format: markdown+frontmatter
+
+# Required frontmatter fields
+frontmatter:
+  id:
+    type: string
+    pattern: "KB-[0-9]{4}"
+    description: Unique lesson identifier. Increment from last id in index.yaml.
+  type:
+    type: string
+    enum: [Error Lesson, Config Recipe, Provider Setup, Debug Playbook]
+    description: Lesson concept type. Enables filtering in visualizer.
+  title:
+    type: string
+    description: Short human-readable title (one sentence, max ~100 chars).
+  category:
+    type: string
+    enum:
+      - shell
+      - git
+      - vcs-hosting
+      - environment
+      - tooling
+      - build
+      - runtime
+      - agent-orchestration
+      - pi-provider
+      - pi-extension
+      - pi-skill
+      - pi-model
+      - pi-session
+      - pi-auth
+    description: Primary category for grouping and filtering.
+  tags:
+    type: list[string]
+    description: Tool/concept tags for cross-linking and search.
+  severity:
+    type: string
+    enum: [low, medium, high, critical]
+    description: Impact severity when this error occurs.
+  status:
+    type: string
+    enum: [active, deprecated, draft]
+    description: Lesson lifecycle status.
+  created:
+    type: date
+    format: YYYY-MM-DD
+  updated:
+    type: date
+    format: YYYY-MM-DD
+  error_signatures:
+    type: list[string]
+    description: >
+      Substrings or regex patterns matched against real error text.
+      Used by kb-lookup for automatic lesson detection.
+      MANDATORY — must remain in frontmatter even after enrichment.
+
+# Required body sections (in order)
+body_sections:
+  - "## Symptom"
+  - "## Root Cause"
+  - "## Why Not Obvious"
+  - "## Detection"
+  - "## Resolution"
+  - "## Prevention"
+  - "## Related"
+  - "## Citations"
+
+# Cross-links format
+# Use file-relative markdown links in ## Related:
+#   [KB-0001 — Title](KB-0001-slug.md)
+# Do NOT use bare id lists.
+
+# Generated files (do not edit manually)
+generated:
+  - index.md      # human-readable lesson index by category (by kb-enrich)
+  - viz.html      # interactive graph visualization (by generate-viz.sh)
+  - log.md        # chronological change journal (by kb-capture)
+
+# =============================================================================
+# _template — copy this block to start a new lesson
+# =============================================================================
+_template: |
+  ---
+  id: KB-XXXX
+  type: Error Lesson
+  title: ""
+  category: runtime
+  tags: []
+  severity: medium
+  status: draft
+  created: YYYY-MM-DD
+  updated: YYYY-MM-DD
+  error_signatures:
+    - ""
+  ---
+
+  ## Symptom
+
+  <!-- What the user sees. -->
+
+  ## Root Cause
+
+  <!-- Why it happens. -->
+
+  ## Why Not Obvious
+
+  <!-- Why this is easy to miss or misdiagnose. -->
+
+  ## Detection
+
+  ```bash
+  # Command to confirm this is the right lesson
+  ```
+
+  ## Resolution
+
+  1. Step one.
+  2. Step two.
+
+  ## Prevention
+
+  <!-- How to avoid this in future. -->
+
+  ## Related
+
+  <!-- Live markdown links to related lessons:
+  - [KB-0001 — Title](KB-0001-slug.md)
+  -->
+
+  ## Citations
+
+  <!-- File paths and URLs:
+  - `~/.pi/agent/settings.json`
+  - [Official docs](https://example.com)
+  -->
