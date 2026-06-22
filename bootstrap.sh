@@ -64,28 +64,59 @@ read_yaml_key() {
   grep -E "^${key}:" "$file" | head -1 | sed "s/^${key}:[[:space:]]*//" | tr -d '"'"'" | xargs
 }
 
-# --- Helper: install scripts ---
+# --- Helper: install scripts (symlink strategy, hash-aware) ---
+# Creates symlinks from ~/.local/bin/ → repo scripts/ so updates to the
+# repo automatically propagate without re-running bootstrap.
+# Falls back to copy if the symlink target would cross filesystem boundaries.
 install_scripts() {
   local kb_dir="$1"
   local kb_yaml="$kb_dir/kb.yaml"
 
   mkdir -p "$HOME/.local/bin"
 
+  _install_one_script() {
+    local src="$1" dst_name="$2"
+    local dst="$HOME/.local/bin/$dst_name"
+
+    # If dst is already a symlink pointing to the right source — skip
+    if [[ -L "$dst" ]] && [[ "$(readlink -f "$dst")" == "$(readlink -f "$src")" ]]; then
+      info "Script up-to-date (symlink): ~/.local/bin/$dst_name"
+      return
+    fi
+
+    # If dst exists as a regular file, compare hashes to detect drift
+    if [[ -f "$dst" ]] && [[ ! -L "$dst" ]]; then
+      local src_hash dst_hash
+      src_hash=$(sha256sum "$src" | cut -d' ' -f1)
+      dst_hash=$(sha256sum "$dst" | cut -d' ' -f1)
+      if [[ "$src_hash" != "$dst_hash" ]]; then
+        warn "Script drift detected: ~/.local/bin/$dst_name differs from repo — updating"
+      else
+        info "Script up-to-date (copy): ~/.local/bin/$dst_name"
+        return
+      fi
+    fi
+
+    # Create symlink (preferred) — if it fails (cross-fs), fall back to copy
+    rm -f "$dst"
+    if ln -s "$(realpath "$src")" "$dst" 2>/dev/null; then
+      chmod +x "$src"
+      info "Installed script (symlink): ~/.local/bin/$dst_name → $src"
+    else
+      cp "$src" "$dst"
+      chmod +x "$dst"
+      info "Installed script (copy): ~/.local/bin/$dst_name"
+    fi
+  }
+
   # Install shared scripts from repo root scripts/
   for script in "$REPO_ROOT/scripts/"*.sh; do
     [[ -f "$script" ]] || continue
-    local name
-    name=$(basename "$script" .sh)
-    # Map to kb- prefix if not already
-    local dst_name="$name"
-    cp "$script" "$HOME/.local/bin/$dst_name"
-    chmod +x "$HOME/.local/bin/$dst_name"
-    info "Installed script: ~/.local/bin/$dst_name"
+    _install_one_script "$script" "$(basename "$script" .sh)"
   done
 
   # Install KB-specific scripts (from scripts: block in kb.yaml)
   if [[ -f "$kb_yaml" ]]; then
-    # Parse scripts list (simple format: "  - src: ...\n    dst: ...")
     local src dst
     while IFS= read -r line; do
       if [[ "$line" =~ src:[[:space:]]*(.+) ]]; then
@@ -93,11 +124,7 @@ install_scripts() {
       elif [[ "$line" =~ dst:[[:space:]]*(.+) ]]; then
         dst="${BASH_REMATCH[1]// /}"
         local src_path="$kb_dir/$src"
-        if [[ -f "$src_path" ]]; then
-          cp "$src_path" "$HOME/.local/bin/$dst"
-          chmod +x "$HOME/.local/bin/$dst"
-          info "Installed KB script: ~/.local/bin/$dst"
-        fi
+        [[ -f "$src_path" ]] && _install_one_script "$src_path" "$dst"
       fi
     done < <(grep -A1 "src:" "$kb_yaml" 2>/dev/null || true)
   fi
