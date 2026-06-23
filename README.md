@@ -1,110 +1,83 @@
-# knowledge-base-template
+# Pi Agent — Error Knowledge Base (KB)
 
-A portable, OKF-compatible knowledge base template for AI agents.
+A file-based knowledge base of **error lessons** for the Pi coding agent
+environment. When something fails, look up a matching lesson and apply its fix;
+new recurring errors are captured back as lessons so they are never solved twice.
 
-Clone this repo to create your own error knowledge base — with automatic
-cross-linking, interactive visualization, and git sync.
+## Why it exists
 
-## Features
+- Stop re-debugging the same Pi/LLM/provider/extension errors.
+- Turn one-off fixes into reusable, searchable knowledge.
+- Give the Pi agent a predictable place to look before retrying blindly.
 
-- 📝 **OKF format** — Markdown lessons with YAML frontmatter (open, readable, diff-friendly)
-- 🔗 **Auto cross-linking** — `kb-enrich` finds related lessons and adds live markdown links
-- 📊 **Interactive graph** — `generate-viz.sh` builds a self-contained `viz.html` (Cytoscape.js)
-- 🔄 **Git sync** — `kb-sync` pushes/pulls your KB to a private mono-repo
-- 🤖 **Pi agent skills** — `kb-lookup`, `kb-capture`, `kb-enrich`, `kb-visualize`, `kb-sync`
-
-## Quick start
-
-```bash
-# 1. Clone this template
-git clone https://github.com/ozand/knowledge-base-template.git my-kb
-cd my-kb
-
-# 2. Create your KB from _template/
-./bootstrap.sh --new my-project-kb
-
-# 3. Edit kb.yaml — set local_path, pi_skills_path, and optionally remote
-
-# 4. Install
-./bootstrap.sh --kb my-project-kb
-```
-
-## Repository structure
+## Structure
 
 ```
-knowledge-base-template/
-├── README.md
-├── bootstrap.sh              # install / create KBs
-├── scripts/
-│   ├── generate-viz.sh       # build viz.html from lessons/*.md
-│   └── kb-sync.sh            # sync KB to remote mono-repo
-└── _template/                # empty KB skeleton
-    ├── kb.yaml               # manifest (name, paths, remote, scripts)
-    ├── AGENTS.md             # agent instructions
-    ├── PRINCIPLES.md         # KB design principles
-    ├── SCHEMA.yaml           # lesson format spec + _template block
-    ├── index.yaml            # machine-readable lesson index
-    ├── index.md              # human-readable index (auto-generated)
-    ├── log.md                # change journal (auto-generated)
-    ├── lessons/
-    │   └── KB-0000-example.md
-    └── skills/
-        ├── kb-lookup/SKILL.md
-        ├── kb-capture/SKILL.md
-        ├── kb-enrich/SKILL.md
-        ├── kb-visualize/SKILL.md
-        └── kb-sync/SKILL.md
+~/.pi/kb/
+├── README.md        # this file
+├── AGENTS.md        # rules for the Pi agent (read this if you are an agent)
+├── PRINCIPLES.md    # design principles behind the KB
+├── SCHEMA.yaml      # what a lesson looks like + a copy-paste template
+├── index.yaml       # searchable index of all lessons
+├── lessons/         # one markdown file per lesson (KB-XXXX-<slug>.md)
+└── skills/
+    ├── kb-lookup/SKILL.md   # Pi skill: find and apply a lesson on error
+    ├── kb-capture/SKILL.md  # Pi skill: record a new lesson
+    ├── kb-enrich/SKILL.md   # Pi skill: build cross-links, backlinks, regenerate indexes
+    ├── kb-visualize/SKILL.md # Pi skill: rebuild interactive viz.html graph
+    └── kb-sync/SKILL.md     # Pi skill: sync KB with remote mono-repo
+└── qmd/                 # Optional: QMD semantic search & session mining module
+    ├── qmd.yaml         # config for QMD collections and performance
+    ├── setup.sh         # setup script (detects CPU speed, global QMD installation)
+    ├── adapters/        # parsers for agent session formats (Pi JSONL, plain text)
+    └── skills/          # semantic search (/kb-search), mining (/kb-mine), harvest (/kb-harvest)
 ```
 
-## Lesson format
+## Quickstart: look up a fix
 
-Lessons are `.md` files with YAML frontmatter:
+1. **Exact match**: Open `index.yaml`. Find the entry whose `error_signatures` match your real error text. Open the file from its `file:` field.
+2. **Semantic match**: If exact search misses, run `/kb-search "<error>"` (requires optional QMD module) to query lessons, chats, and docs.
+3. Apply the steps in `resolution`, then the `prevention` advice.
 
-```markdown
----
-id: KB-0001
-type: Error Lesson
-title: "Short description of the error"
-category: runtime
-tags: [tool, keyword]
-severity: high
-status: active
-created: 2026-06-22
-updated: 2026-06-22
-error_signatures:
-  - "exact error substring"
-  - "another pattern"
----
+## Quickstart: add a lesson
 
-## Symptom
-## Root Cause
-## Why Not Obvious
-## Detection
-## Resolution
-## Prevention
-## Related
-## Citations
-```
+1. Copy the `_template` block from `SCHEMA.yaml` into
+   `lessons/KB-XXXX-<slug>.md` (use the next free id).
+2. Fill in the fields. **`error_signatures` is required** — these are the
+   strings future lookups will match against, so make them specific.
+3. Add a matching entry to `index.yaml`, then bump `count` and `updated`.
+4. Run `/kb-enrich` to generate backlinks (`## Cited by`) and rebuild `index.md`/`log.md`.
 
-## Requirements
+## Use with the Pi agent
 
-- Bash 4+
-- Python 3 + PyYAML (or [uv](https://github.com/astral-sh/uv) — auto-used as fallback)
-- [gh CLI](https://cli.github.com/) — for git sync
-- [Pi coding agent](https://github.com/earendil-works/pi) — for skills (optional)
+The skills are installed in `~/.pi/kb/skills/` (and `qmd/skills/` if installed) and discovered automatically by Pi. The agent will:
+- consult this KB on errors before retrying, and
+- offer to capture a new lesson when it resolves a new recurring error.
 
-## Pi agent integration
+You can also drive it explicitly:
 
-The skills in `_template/skills/` are Pi-compatible SKILL.md files.
-After bootstrap, they are registered in `~/.pi/agent/settings.json` automatically.
+> `/kb-lookup` — find a fix for the current error
+> `/kb-capture` — record a new lesson after resolving an error
+> `/kb-search` — semantic search across all collections (curated, sessions, docs)
+> `/kb-mine` — scan agent logs for recurring errors and suggest capture
+> `/kb-harvest` — ingest external reference documentation
+> `/kb-sync` — manual git sync with the remote repository
 
-Use in Pi agent:
-- `/kb-lookup` — find a lesson for a current error
-- `/kb-capture` — record a new lesson
-- `/kb-enrich` — enrich cross-links + regenerate index
-- `/kb-visualize` — rebuild viz.html
-- `/kb-sync` — push/pull with remote repo
 
-## License
+## Pi-specific categories
 
-MIT
+In addition to general categories, this KB covers:
+- `pi-provider` — LiteLLM, LM Studio, model API errors
+- `pi-extension` — Pi extension loading/runtime errors
+- `pi-skill` — skill discovery, loading, execution errors
+- `pi-model` — model selection, context, token limit errors
+- `pi-session` — session management, compaction, fork errors
+- `pi-auth` — API keys, auth.json, token errors
+
+## Conventions
+
+- All files and their names are in **English**; encoding is **UTF-8**.
+- Lesson ids: `KB-XXXX` (zero-padded), one lesson per file.
+- Prefer `status: deprecated` over deleting outdated lessons.
+
+See `PRINCIPLES.md` for the reasoning and `AGENTS.md` for the full agent rules.
