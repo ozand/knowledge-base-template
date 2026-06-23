@@ -38,6 +38,7 @@ usage() {
   echo "Usage:"
   echo "  $0 --kb <kb-dir>     Install KB from this repo directory"
   echo "  $0 --new <name>      Create a new KB from _template/"
+  echo "  $0 --qmd             Install/configure QMD integration module"
   echo "  $0 --help"
   exit 0
 }
@@ -45,15 +46,22 @@ usage() {
 # --- Parse args ---
 MODE=""
 KB_ARG=""
+QMD_FLAG=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --kb)   MODE="install"; KB_ARG="$2"; shift 2 ;;
     --new)  MODE="new";     KB_ARG="$2"; shift 2 ;;
+    --qmd)  QMD_FLAG=true;  shift ;;
     --help|-h) usage ;;
     *) error "Unknown option: $1"; usage ;;
   esac
 done
+
+if [[ "$QMD_FLAG" == "true" ]] && [[ -z "$MODE" ]]; then
+  # Default to qmd-only on current KB
+  MODE="qmd-only"
+fi
 
 [[ -z "$MODE" ]] && usage
 
@@ -128,6 +136,17 @@ install_scripts() {
       fi
     done < <(grep -A1 "src:" "$kb_yaml" 2>/dev/null || true)
   fi
+}
+
+# --- Helper: confirm prompt ---
+confirm() {
+  local prompt="$1"
+  local reply
+  read -p "$prompt [y/N]: " -r reply
+  if [[ "$reply" =~ ^[Yy]$ ]]; then
+    return 0
+  fi
+  return 1
 }
 
 # --- Helper: register Pi skills ---
@@ -253,6 +272,16 @@ install_kb() {
     eval "$hook"
   done < <(awk '/^hooks:/,/^[^ ]/' "$kb_yaml" | grep -E "^\s+-\s+" || true)
 
+  # Setup optional QMD integration
+  if [[ "$QMD_FLAG" == "true" ]] || confirm "Install optional QMD semantic search & mining module?"; then
+    if [[ -f "$local_path/qmd/setup.sh" ]]; then
+      chmod +x "$local_path/qmd/setup.sh"
+      "$local_path/qmd/setup.sh"
+    else
+      warn "QMD setup script not found at $local_path/qmd/setup.sh"
+    fi
+  fi
+
   echo ""
   info "Bootstrap complete!"
   echo "   Open viz.html: xdg-open $local_path/viz.html"
@@ -307,7 +336,17 @@ new_kb() {
 # Run
 # ============================================================
 case "$MODE" in
-  install) install_kb ;;
-  new)     new_kb ;;
-  *)       usage ;;
+  install)  install_kb ;;
+  new)      new_kb ;;
+  qmd-only)
+    local_path=$(eval echo "$(read_yaml_key "$REPO_ROOT/pi-kb/kb.yaml" "local_path" | sed "s|~|$HOME|g")")
+    if [[ -d "$local_path" ]]; then
+      info "Setting up QMD integration on existing KB at $local_path..."
+      chmod +x "$local_path/qmd/setup.sh"
+      "$local_path/qmd/setup.sh"
+    else
+      error "No active KB found at $local_path. Install or create one first."
+    fi
+    ;;
+  *)        usage ;;
 esac

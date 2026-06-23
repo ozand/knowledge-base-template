@@ -1,0 +1,24 @@
+# =============================================================================
+# qmd.yaml — Configuration for optional QMD integration module
+# =============================================================================
+
+kb_name: pi-kb
+
+# Target collections where QMD reads documents
+collections:
+  lessons: ~/.pi/kb/lessons
+  sources: ~/.cache/pi-kb/qmd-sources
+  docs: ~/.cache/pi-kb/qmd-docs
+
+# Standard paths to search for agent logs/sessions during auto-detection
+agent_paths:
+  pi: ~/.pi/agent/sessions
+  claude: ~/.claude/projects
+  hermes: ~/.hermes
+  opencode: ~/.opencode/projects
+
+# Performance profiles for low-spec or head-less environments
+performance:
+  disable_reranker: false  # options: auto (probe at setup), true, false
+  max_docs_per_batch: 50
+  max_batch_mb: 64
